@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Post-it Candy Wallpaper Maker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(120deg, #ffd6e0, #ffe4b3);
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #ff4081;
+      margin-bottom: 15px;
+      text-shadow: 2px 2px #fff;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    button, input[type=color], input[type=file] {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+
+    button:hover, input[type=color]:hover, input[type=file]:hover {
+      transform: scale(1.05);
+      transition: 0.2s;
+    }
+
+    #canvas {
+      width: 100%;
+      max-width: 1200px;
+      height: 600px;
+      margin: auto;
+      border: 3px dashed #ff79c6;
+      border-radius: 15px;
+      position: relative;
+      background-color: #fff9c4;
+      overflow: hidden;
+    }
+
+    .postit, .image-item {
+      position: absolute;
+      cursor: move;
+      border-radius: 10px;
+      box-shadow: 3px 3px 6px rgba(0,0,0,0.2);
+    }
+
+    .postit {
+      width: 150px;
+      height: 150px;
+      background-color: #ffeb3b;
+      padding: 10px;
+      resize: both;
+      overflow: auto;
+    }
+
+    .postit textarea {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      font-size: 16px;
+      resize: none;
+      outline: none;
+    }
+
+    .resizer {
+      width: 12px;
+      height: 12px;
+      background: #ff4081;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      cursor: se-resize;
+      border-radius: 3px;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background: #ff1744;
+      color: #fff;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 16px;
+      text-align: center;
+      line-height: 22px;
+      cursor: pointer;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>Post-it Candy Wallpaper</h1>
+
+<div class="controls">
+  <button onclick="setLayout('pc')">PC Layout</button>
+  <button onclick="setLayout('mobile')">Mobile Layout</button>
+  <button onclick="addPostIt()">➕ เพิ่ม Post-it</button>
+  <label>สี Post-it: <input type="color" id="postitColor" value="#ffeb3b"></label>
+  <label>สีพื้นหลัง: <input type="color" id="bgColor" value="#fff9c4" onchange="changeCanvasColor(this.value)"></label>
+  <input type="file" id="imageUpload" accept="image/*">
+  <button onclick="downloadImage()">⬇️ ดาวน์โหลด Wallpaper</button>
+</div>
+
+<div id="canvas" class="pc"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+const canvas = document.getElementById('canvas');
+const postitColorInput = document.getElementById('postitColor');
+const imageUpload = document.getElementById('imageUpload');
+
+let postitElements = [];
+
+// Layout
+function setLayout(type) { canvas.className = type; }
+
+// Add Post-it
+function addPostIt() {
+  const postit = document.createElement('div');
+  postit.className = 'postit';
+  postit.style.top = '10px';
+  postit.style.left = '10px';
+  postit.style.backgroundColor = postitColorInput.value;
+
+  const textarea = document.createElement('textarea');
+  textarea.placeholder = "เขียนข้อความ...";
+  postit.appendChild(textarea);
+
+  addDeleteButton(postit);
+  makeDraggable(postit);
+  makeResizable(postit, postit);
+  canvas.appendChild(postit);
+  postitElements.push(postit);
+}
+
+// Delete button
+function addDeleteButton(el) {
+  const btn = document.createElement('div');
+  btn.className = 'delete-btn';
+  btn.innerText = '×';
+  btn.onclick = () => el.remove();
+  el.appendChild(btn);
+}
+
+// Change Post-it color
+postitColorInput.addEventListener('change', () => {
+  if(postitElements.length > 0) {
+    postitElements[postitElements.length-1].style.backgroundColor = postitColorInput.value;
+  }
+});
+
+// Change canvas background
+function changeCanvasColor(color) { canvas.style.backgroundColor = color; }
+
+// Make draggable
+function makeDraggable(el) {
+  let isDragging = false;
+  let offsetX, offsetY;
+
+  el.addEventListener('mousedown', function(e) {
+    if(e.target.classList.contains('resizer') || e.target.classList.contains('delete-btn')) return;
+    isDragging = true;
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+    el.style.zIndex = 1000;
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (isDragging) {
+      const rect = canvas.getBoundingClientRect();
+      let x = e.clientX - rect.left - offsetX;
+      let y = e.clientY - rect.top - offsetY;
+      x = Math.max(0, Math.min(x, canvas.clientWidth - el.offsetWidth));
+      y = Math.max(0, Math.min(y, canvas.clientHeight - el.offsetHeight));
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', function() { isDragging = false; el.style.zIndex = 1; });
+}
+
+// Image Upload
+imageUpload.addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if(file) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const imgContainer = document.createElement('div');
+      imgContainer.className = 'image-item';
+      imgContainer.style.top = '20px';
+      imgContainer.style.left = '20px';
+
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      img.style.width = '120px';
+      img.style.height = '120px';
+      imgContainer.appendChild(img);
+
+      addDeleteButton(imgContainer);
+      makeDraggable(imgContainer);
+      makeResizable(imgContainer, img);
+      canvas.appendChild(imgContainer);
+    }
+    reader.readAsDataURL(file);
+  }
+});
+
+// Resizable
+function makeResizable(container, target) {
+  const resizer = document.createElement('div');
+  resizer.className = 'resizer';
+  container.appendChild(resizer);
+
+  resizer.addEventListener('mousedown', function(e) {
+    e.stopPropagation();
+    let startX = e.clientX;
+    let startY = e.clientY;
+    let startWidth = target.offsetWidth;
+    let startHeight = target.offsetHeight;
+
+    function doResize(ev) {
+      let newWidth = startWidth + (ev.clientX - startX);
+      let newHeight = startHeight + (ev.clientY - startY);
+      target.style.width = newWidth + 'px';
+      target.style.height = newHeight + 'px';
+    }
+
+    function stopResize() {
+      document.removeEventListener('mousemove', doResize);
+      document.removeEventListener('mouseup', stopResize);
+    }
+
+    document.addEventListener('mousemove', doResize);
+    document.addEventListener('mouseup', stopResize);
+  });
+}
+
+// Download Wallpaper
+function downloadImage() {
+  html2canvas(canvas).then(canvasEl => {
+    const link = document.createElement('a');
+    link.download = 'postit-candy-wallpaper.png';
+    link.href = canvasEl.toDataURL();
+    link.click();
+  });
+}
+</script>
+</body>
+</html>
