@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Post-it editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  margin:0;padding:20px;
+  background: linear-gradient(120deg,#ffd6e0,#ffe4b3);
+}
+
+h1 {
+  text-align:center;
+  color:#ff4081;
+  margin-bottom:15px;
+  text-shadow:2px 2px #fff;
+}
+
+.controls{
+  display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin-bottom:15px;
+}
+
+.button{
+  border:none;border-radius:12px;cursor:pointer;font-size:16px;width:50px;height:50px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:2px 2px 6px rgba(0,0,0,0.2);transition:transform 0.2s;
+}
+.button:hover{transform:scale(1.1);}
+
+#canvas{
+  width:100%;max-width:1200px;height:600px;margin:auto;
+  border:3px dashed #ff79c6;border-radius:15px;
+  position:relative;background-color:#fff9c4;overflow:hidden;
+}
+
+#canvas.pc { width:1280px; height:720px; }
+#canvas.mobile { width:360px; height:640px; }
+
+.postit, .image-item{
+  position:absolute; cursor:move;
+  box-shadow:4px 4px 10px rgba(0,0,0,0.25);
+  overflow:hidden;font-size:16px;font-weight:bold;text-align:center;
+}
+
+.postit{
+  width:150px;height:150px;padding:10px;
+  background:linear-gradient(135deg,#fff176,#ffeb3b);
+  border:2px solid #fdd835;
+  border-radius:15px; /* Default สี่เหลี่ยมมุมโค้ง */
+}
+
+textarea{width:100%;height:100%;border:none;background:transparent;resize:none;outline:none;}
+
+.resizer{
+  width:18px;height:18px;
+  position:absolute;right:0;bottom:0;
+  cursor:se-resize;
+  background:url('https://cdn-icons-png.flaticon.com/512/32/32339.png') no-repeat center center;
+  background-size:contain;
+}
+
+.delete-btn{
+  position:absolute;top:-10px;right:-10px;
+  width:22px;height:22px;
+  background:url('https://cdn-icons-png.flaticon.com/512/1214/1214428.png') no-repeat center center;
+  background-size:contain;
+  cursor:pointer;
+}
+
+.postit-toolbar{
+  position:absolute;
+  display:flex;
+  gap:5px;
+  padding:5px;
+  background:rgba(255,255,255,0.9);
+  border-radius:10px;
+  box-shadow:2px 2px 6px rgba(0,0,0,0.2);
+  z-index:2000;
+}
+.postit-toolbar button, .postit-toolbar .color-swatch{
+  width:30px;height:30px;cursor:pointer;border-radius:6px;border:1px solid #ccc;
+  box-shadow:1px 1px 3px rgba(0,0,0,0.2);
+}
+</style>
+</head>
+<body>
+
+<h1>Post-it Wallpaper Editor</h1>
+
+<div class="controls">
+  <button class="button" onclick="setLayout('pc')" style="background:#81d4fa;">🖥️</button>
+  <button class="button" onclick="setLayout('mobile')" style="background:#f48fb1;">📱</button>
+  <button class="button" onclick="addPostIt()" style="background:#ffd54f;">➕</button>
+  <label class="button" style="background:#ffe082;">🖼️
+    <input type="file" id="imageUpload" accept="image/*" style="display:none;">
+  </label>
+  <button class="button" onclick="downloadImage()" style="background:#ff4081;">⬇️</button>
+  <input type="color" id="canvasColor" title="เปลี่ยนสีพื้นหลัง" style="width:40px;height:40px;border:none;margin-left:10px;">
+</div>
+
+<div id="canvas" class="pc"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+const canvas=document.getElementById('canvas');
+let postitElements=[], selectedPostIt=null;
+
+function setLayout(type){
+  canvas.classList.remove('pc','mobile');
+  canvas.classList.add(type);
+}
+
+function addPostIt(){
+  const postit=document.createElement('div');
+  postit.className='postit';
+  postit.style.top='20px'; postit.style.left='20px';
+  postit.innerHTML='<textarea placeholder="เขียนข้อความ..."></textarea>';
+  addDeleteButton(postit);
+  makeDraggable(postit);
+  makeResizable(postit,postit);
+  canvas.appendChild(postit);
+  postitElements.push(postit);
+  postit.addEventListener('click',(e)=>{ e.stopPropagation(); showToolbar(postit); });
+}
+
+function addDeleteButton(el){
+  const btn=document.createElement('div');
+  btn.className='delete-btn';
+  btn.onclick=()=>el.remove();
+  el.appendChild(btn);
+}
+
+function showToolbar(postit){
+  postitElements.forEach(p=>{ if(p!==postit && p.toolbar) p.toolbar.remove(); });
+  selectedPostIt=postit;
+
+  const toolbar=document.createElement('div');
+  toolbar.className='postit-toolbar';
+  toolbar.style.top = (parseInt(postit.style.top)-50)+'px';
+  toolbar.style.left = postit.style.left;
+
+  // เปลี่ยนสี post-it
+  ['#fff176','#ff8a65','#4fc3f7','#aed581','#f48fb1'].forEach(color=>{
+    const sw=document.createElement('div'); sw.className='color-swatch'; sw.style.background=color;
+    sw.onclick=()=>postit.style.background=color; toolbar.appendChild(sw);
+  });
+
+  // เปลี่ยนรูปร่าง Post-it
+  const shapes = {
+    'สี่เหลี่ยม':'15px',
+    'วงกลม':'50%',
+    'มุมโค้ง':'30px'
+  };
+  for(let key in shapes){
+    const btn=document.createElement('button'); btn.innerText=key[0];
+    btn.title=key;
+    btn.onclick=()=>{
+      postit.style.borderRadius=shapes[key];
+    }
+    toolbar.appendChild(btn);
+  }
+
+  postit.appendChild(toolbar);
+  postit.toolbar=toolbar;
+}
+
+// เปลี่ยนสี canvas
+document.getElementById('canvasColor').addEventListener('input',function(){
+  canvas.style.background=this.value;
+});
+
+// Draggable
+function makeDraggable(el){
+  let isDragging=false, offsetX, offsetY;
+  el.addEventListener('mousedown',function(e){
+    if(e.target.classList.contains('resizer') || e.target.classList.contains('delete-btn') || e.target.closest('.postit-toolbar')) return;
+    isDragging=true; offsetX=e.offsetX; offsetY=e.offsetY; el.style.zIndex=1000;
+  });
+  document.addEventListener('mousemove',function(e){
+    if(isDragging){
+      const rect=canvas.getBoundingClientRect();
+      el.style.left=Math.max(0,Math.min(e.clientX-rect.left-offsetX,canvas.clientWidth-el.offsetWidth))+'px';
+      el.style.top=Math.max(0,Math.min(e.clientY-rect.top-offsetY,canvas.clientHeight-el.offsetHeight))+'px';
+      // Toolbar ติดตาม
+      if(el.toolbar){ el.toolbar.style.top=(parseInt(el.style.top)-50)+'px'; el.toolbar.style.left=el.style.left; }
+    }
+  });
+  document.addEventListener('mouseup',()=>{isDragging=false;el.style.zIndex=1;});
+}
+
+// Resizable
+function makeResizable(container,target){
+  const resizer=document.createElement('div'); resizer.className='resizer'; container.appendChild(resizer);
+  resizer.addEventListener('mousedown',function(e){
+    e.stopPropagation(); const startX=e.clientX, startY=e.clientY, startWidth=target.offsetWidth, startHeight=target.offsetHeight;
+    function doResize(ev){ target.style.width=startWidth+(ev.clientX-startX)+'px'; target.style.height=startHeight+(ev.clientY-startY)+'px'; 
+      if(container.toolbar){ container.toolbar.style.top=(parseInt(container.style.top)-50)+'px'; } }
+    function stopResize(){ document.removeEventListener('mousemove',doResize); document.removeEventListener('mouseup',stopResize);}
+    document.addEventListener('mousemove',doResize); document.addEventListener('mouseup',stopResize);
+  });
+}
+
+// Image Upload
+document.getElementById('imageUpload').addEventListener('change',function(e){
+  const file=e.target.files[0]; if(file){
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const imgContainer=document.createElement('div'); imgContainer.className='image-item';
+      imgContainer.style.top='30px'; imgContainer.style.left='30px';
+      const img=document.createElement('img'); img.src=ev.target.result; img.style.width='120px'; img.style.height='120px'; img.style.borderRadius='8px';
+      imgContainer.appendChild(img); addDeleteButton(imgContainer); makeDraggable(imgContainer); makeResizable(imgContainer,img);
+      canvas.appendChild(imgContainer);
+    }
+    reader.readAsDataURL(file);
+  }
+});
+
+// Download
+function downloadImage(){
+  html2canvas(canvas).then(canvasEl=>{
+    const link=document.createElement('a');
+    link.download='postit-wallpaper.png';
+    link.href=canvasEl.toDataURL();
+    link.click();
+  });
+}
+</script>
+</body>
+</html>
