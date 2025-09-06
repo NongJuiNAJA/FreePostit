@@ -4,70 +4,83 @@
 <meta charset="UTF-8">
 <title>Post-it Pixel Editor</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<!-- ===================== CSS ===================== -->
 <style>
+/* ====== ตัวหน้าเว็บ ====== */
 body {
   font-family: 'Press Start 2P', cursive;
   background: repeating-linear-gradient(45deg,#fce4ec,#fce4ec 20px,#f8bbd0 20px,#f8bbd0 40px);
-  margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;
+  margin:0; padding:20px;
+  display:flex; flex-direction:column; align-items:center;
 }
-h1 { font-size:16px;color:#ff4081;text-shadow:2px 2px #fff;margin-bottom:15px;text-align:center; }
 
+h1 { font-size:16px; color:#ff4081; text-align:center; margin-bottom:15px; }
+
+/* ====== ปุ่มควบคุม ====== */
 .controls{
-  display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin-bottom:15px;
+  display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:15px;
 }
 .button{
-  border:3px solid #333;
-  background:#ffd54f;
-  font-size:12px;width:50px;height:50px;
-  display:flex;align-items:center;justify-content:center;
-  image-rendering:pixelated;box-shadow:4px 4px 0 #333;
-  cursor:pointer;transition:transform 0.2s;
+  width:50px; height:50px; font-size:12px;
+  border:3px solid #333; background:#ffd54f;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; box-shadow:4px 4px 0 #333;
 }
-.button:hover{transform:scale(1.1);}
+.button:hover{ transform:scale(1.1); }
+
+/* ====== พื้นที่ทำงาน ====== */
 #canvas{
-  width:90%;max-width:1200px;height:600px;margin:auto;
-  border:4px solid #333;background:#fff9c4;position:relative;overflow:hidden;
-  image-rendering:pixelated;
+  width:90%; max-width:1200px; height:600px;
+  border:4px solid #333; background:#fff9c4;
+  position:relative; overflow:hidden;
 }
-#canvas.pc{width:1280px;height:720px;}
-#canvas.mobile{width:360px;height:640px;}
-.postit,.image-item{
-  position:absolute;cursor:move;box-shadow:4px 4px 0 rgba(0,0,0,1);
-  font-size:10px;color:#000;image-rendering:pixelated;
-}
+#canvas.pc{ width:1280px; height:720px; }
+#canvas.mobile{ width:360px; height:640px; }
+
+/* ====== Post-it ====== */
 .postit{
-  width:120px;height:120px;background:#ffeb3b;border:3px solid #333;
-  display:flex;align-items:center;justify-content:center;padding:4px;overflow-wrap:break-word;
+  position:absolute; width:120px; min-width:60px; min-height:60px; background:#ffeb3b;
+  border:3px solid #333; display:flex; flex-direction:column; justify-content:center;
+  align-items:center; padding:4px; box-shadow:4px 4px 0 #333;
 }
 .postit textarea{
-  font-family:'Press Start 2P',cursive;font-size:8px;border:none;background:transparent;
-  resize:none;outline:none;text-align:center;width:100%;height:100%;
+  width:100%; border:none; background:transparent; outline:none;
+  text-align:center; font-size:8px; font-family:'Press Start 2P', cursive;
+  overflow:hidden; flex:1;
 }
+
+/* ====== ปุ่มลบ ====== */
 .delete-btn{
-  position:absolute;top:-10px;right:-10px;width:20px;height:20px;
-  background:red;border:2px solid #333;color:#fff;font-size:12px;line-height:16px;text-align:center;
-  cursor:pointer;box-shadow:2px 2px 0 #333;
+  position:absolute; top:-10px; right:-10px; width:20px; height:20px;
+  background:red; color:white; border:2px solid #333; text-align:center; cursor:pointer;
 }
-/* Toolbar Pixel */
+
+/* ====== Toolbar ====== */
 #toolbar-postit{
-  position:absolute;display:none;background:#ffcc80;border:3px solid #333;padding:5px;
-  box-shadow:4px 4px 0 #333;z-index:2000;flex-wrap:wrap;gap:5px;
+  display:none; position:absolute; background:#ffcc80;
+  border:3px solid #333; padding:5px; box-shadow:4px 4px 0 #333;
+  z-index:2000; display:flex; gap:5px; flex-wrap:wrap;
 }
-#toolbar-postit button,#toolbar-postit .color-swatch{
-  width:28px;height:28px;border:2px solid #333;cursor:pointer;image-rendering:pixelated;margin:2px;
+#toolbar-postit .color-swatch{
+  width:28px; height:28px; border:2px solid #333; cursor:pointer;
 }
-#toolbar-postit button{background:#444;color:white;font-size:10px;}
-#toolbar-postit button:hover{background:#666;}
-/* Resizer */
+#toolbar-postit button{
+  width:28px; height:28px; font-size:10px; background:#444; color:white; cursor:pointer;
+}
+#toolbar-postit button:hover{ background:#666; }
+
+/* ====== Resizer ====== */
 .resizer{
-  width:12px;height:12px;position:absolute;right:0;bottom:0;
-  background:rgba(0,0,0,0.5);cursor:se-resize;
+  width:16px; height:16px; position:absolute; right:0; bottom:0;
+  background:rgba(0,0,0,0.5); cursor:se-resize;
 }
 </style>
 </head>
+
 <body>
 
+<!-- ===================== HTML ===================== -->
 <h1>Post-it Pixel Wallpaper Editor</h1>
 
 <div class="controls">
@@ -78,7 +91,9 @@ h1 { font-size:16px;color:#ff4081;text-shadow:2px 2px #fff;margin-bottom:15px;te
     <input type="file" id="imageUpload" accept="image/*" style="display:none;">
   </label>
   <button class="button" onclick="downloadImage()">⬇️</button>
-  <input type="color" id="canvasColor" style="width:40px;height:40px;border:2px solid #333;margin-left:10px;">
+  <button class="button" onclick="undoAction()">↩️</button>
+  <button class="button" onclick="redoAction()">↪️</button>
+  <input type="color" id="canvasColor" style="width:40px;height:40px;">
 </div>
 
 <div id="canvas" class="pc"></div>
@@ -93,171 +108,97 @@ h1 { font-size:16px;color:#ff4081;text-shadow:2px 2px #fff;margin-bottom:15px;te
   <button onclick="changeShape('10px')">⬒</button>
 </div>
 
+<!-- ===================== JavaScript ===================== -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
-const canvas=document.getElementById('canvas');
-const toolbar=document.getElementById('toolbar-postit');
-let selectedPostIt=null;
+const canvas = document.getElementById('canvas');
+const toolbar = document.getElementById('toolbar-postit');
+let selectedPostIt = null;
+let undoStack = [], redoStack = [];
 
-function setLayout(type){
-  canvas.classList.remove('pc','mobile');
-  canvas.classList.add(type);
-}
+// ====== บันทึกสถานะ ======
+function saveState(){ undoStack.push(canvas.innerHTML); if(undoStack.length>50) undoStack.shift(); }
+function undoAction(){ if(undoStack.length){ redoStack.push(canvas.innerHTML); canvas.innerHTML = undoStack.pop(); rebindAll(); } }
+function redoAction(){ if(redoStack.length){ undoStack.push(canvas.innerHTML); canvas.innerHTML = redoStack.pop(); rebindAll(); } }
 
-// เพิ่ม Post-it
-function addPostIt(){
-  const postit=document.createElement('div'); 
-  postit.className='postit';
-  postit.style.top='20px'; postit.style.left='20px';
-  postit.innerHTML='<textarea placeholder="เขียน..."></textarea>';
-
-  const del=document.createElement('div'); 
-  del.className='delete-btn'; del.innerText='X';
-  del.onclick=()=>{if(selectedPostIt===postit){toolbar.style.display='none';selectedPostIt=null;} postit.remove();}
-  postit.appendChild(del);
-
-  makeDraggable(postit);
-  makeResizable(postit);
-
-  postit.addEventListener('click',e=>{ e.stopPropagation(); showToolbar(postit); });
-  canvas.appendChild(postit);
-}
-
-// toolbar
-function showToolbar(postit){
-  selectedPostIt=postit;
-  const rect=postit.getBoundingClientRect();
-  const canvasRect=canvas.getBoundingClientRect();
-  toolbar.style.display='flex';
-  toolbar.style.top=(rect.top-canvasRect.top)+'px';
-  toolbar.style.left=(rect.right-canvasRect.left+10)+'px';
-}
-function changeColor(color){ if(selectedPostIt) selectedPostIt.style.background=color; }
-function changeShape(radius){ if(selectedPostIt) selectedPostIt.style.borderRadius=radius; }
-
-// draggable รองรับ desktop + mobile
+// ====== ทำให้ Post-it เลื่อนและปรับขนาดได้ ======
 function makeDraggable(el){
-  let isDragging=false, offsetX, offsetY;
-
-  function startDrag(x, y){
-    isDragging=true;
-    const rect = el.getBoundingClientRect();
-    offsetX = x - rect.left;
-    offsetY = y - rect.top;
-    el.style.zIndex=1000;
-  }
-
-  function moveDrag(x, y){
-    if(!isDragging) return;
-    const rect=canvas.getBoundingClientRect();
-    el.style.left = Math.max(0, Math.min(x-rect.left-offsetX, canvas.clientWidth-el.offsetWidth))+'px';
-    el.style.top = Math.max(0, Math.min(y-rect.top-offsetY, canvas.clientHeight-el.offsetHeight))+'px';
-    if(selectedPostIt===el){
-      const postRect=el.getBoundingClientRect();
-      toolbar.style.top=(postRect.top-rect.top)+'px';
-      toolbar.style.left=(postRect.right-rect.left+10)+'px';
-    }
-  }
-
-  function endDrag(){ isDragging=false; el.style.zIndex=1; }
-
-  // Mouse events
-  el.addEventListener('mousedown', e => { 
-    if(e.target.classList.contains('delete-btn') || e.target.classList.contains('resizer')) return;
-    startDrag(e.clientX, e.clientY);
-  });
-  document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
-  document.addEventListener('mouseup', endDrag);
-
-  // Touch events
-  el.addEventListener('touchstart', e => { 
-    if(e.target.classList.contains('delete-btn') || e.target.classList.contains('resizer')) return;
-    const t = e.touches[0];
-    startDrag(t.clientX, t.clientY);
-    e.preventDefault();
-  }, {passive:false});
-  document.addEventListener('touchmove', e => {
-    const t = e.touches[0];
-    moveDrag(t.clientX, t.clientY);
-  }, {passive:false});
-  document.addEventListener('touchend', endDrag);
+  let drag=false, offsetX, offsetY;
+  function start(x,y){ drag=true; const r=el.getBoundingClientRect(); offsetX=x-r.left; offsetY=y-r.top; el.style.zIndex=1000; }
+  function move(x,y){ if(!drag) return; const r=canvas.getBoundingClientRect(); el.style.left=Math.max(0,Math.min(x-r.left-offsetX,canvas.clientWidth-el.offsetWidth))+'px'; el.style.top=Math.max(0,Math.min(y-r.top-offsetY,canvas.clientHeight-el.offsetHeight))+'px'; if(selectedPostIt===el) showToolbar(el); }
+  function end(){ drag=false; el.style.zIndex=1; saveState(); }
+  el.addEventListener('mousedown', e=>{ if(e.target.classList.contains('delete-btn')||e.target.classList.contains('resizer')) return; start(e.clientX,e.clientY); });
+  document.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
+  document.addEventListener('mouseup', end);
+  el.addEventListener('touchstart', e=>{ const t=e.touches[0]; start(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
+  document.addEventListener('touchmove', e=>{ if(!e.touches) return; const t=e.touches[0]; move(t.clientX,t.clientY); }, {passive:false});
+  document.addEventListener('touchend', end);
 }
 
-// resizer รองรับ desktop + mobile
-function makeResizable(postit){
-  const resizer=document.createElement('div'); resizer.className='resizer';
-  postit.appendChild(resizer);
-
-  let startX, startY, startW, startH;
-
-  function initResize(x, y){
-    startX = x; startY = y;
-    startW = postit.offsetWidth; startH = postit.offsetHeight;
-  }
-
-  function doResize(x, y){
-    postit.style.width = startW + (x-startX) + 'px';
-    postit.style.height = startH + (y-startY) + 'px';
-    if(selectedPostIt===postit){
-      const rect=postit.getBoundingClientRect();
-      const canvasRect=canvas.getBoundingClientRect();
-      toolbar.style.top=(rect.top-canvasRect.top)+'px';
-      toolbar.style.left=(rect.right-canvasRect.left+10)+'px';
-    }
-  }
-
-  function stopResize(){
-    document.removeEventListener('mousemove', mouseMove);
-    document.removeEventListener('mouseup', stopResize);
-    document.removeEventListener('touchmove', touchMove);
-    document.removeEventListener('touchend', stopResize);
-  }
-
-  function mouseMove(e){ doResize(e.clientX, e.clientY); }
-  function touchMove(e){ doResize(e.touches[0].clientX, e.touches[0].clientY); }
-
-  resizer.addEventListener('mousedown', e=>{
-    e.stopPropagation();
-    initResize(e.clientX, e.clientY);
-    document.addEventListener('mousemove', mouseMove);
-    document.addEventListener('mouseup', stopResize);
-  });
-
-  resizer.addEventListener('touchstart', e=>{
-    e.stopPropagation();
-    initResize(e.touches[0].clientX, e.touches[0].clientY);
-    document.addEventListener('touchmove', touchMove, {passive:false});
-    document.addEventListener('touchend', stopResize);
-  }, {passive:false});
+function makeResizable(el){
+  const res = document.createElement('div'); res.className='resizer'; el.appendChild(res);
+  let startX,startY,startW,startH;
+  function init(x,y){ startX=x; startY=y; startW=el.offsetWidth; startH=el.offsetHeight; }
+  function resize(x,y){ el.style.width=Math.max(60,startW+x-startX)+'px'; el.style.height=Math.max(60,startH+y-startY)+'px'; if(selectedPostIt===el) showToolbar(el); }
+  function stop(){ document.removeEventListener('mousemove', mouseMove); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', touchMove); document.removeEventListener('touchend', stop); }
+  function mouseMove(e){ resize(e.clientX,e.clientY); }
+  function touchMove(e){ resize(e.touches[0].clientX,e.touches[0].clientY); }
+  res.addEventListener('mousedown', e=>{ e.stopPropagation(); init(e.clientX,e.clientY); document.addEventListener('mousemove', mouseMove); document.addEventListener('mouseup', stop); });
+  res.addEventListener('touchstart', e=>{ e.stopPropagation(); init(e.touches[0].clientX,e.touches[0].clientY); document.addEventListener('touchmove', touchMove,{passive:false}); document.addEventListener('touchend', stop); },{passive:false});
 }
 
-// Image Upload
-document.getElementById('imageUpload').addEventListener('change',function(e){
-  const file=e.target.files[0]; if(file){
-    const reader=new FileReader();
-    reader.onload=function(ev){
-      const imgContainer=document.createElement('div'); imgContainer.className='image-item';
-      imgContainer.style.top='30px'; imgContainer.style.left='30px';
-      const img=document.createElement('img'); img.src=ev.target.result; img.style.width='120px'; img.style.height='120px'; img.style.border='3px solid #333';
-      imgContainer.appendChild(img); makeDraggable(imgContainer);
-      const del=document.createElement('div'); del.className='delete-btn'; del.innerText='X'; del.onclick=()=>imgContainer.remove();
-      imgContainer.appendChild(del);
-      canvas.appendChild(imgContainer);
-    }
-    reader.readAsDataURL(file);
+// ====== เพิ่ม Post-it ======
+function addPostIt(){
+  saveState();
+  const post = document.createElement('div'); post.className='postit';
+  post.style.top='20px'; post.style.left='20px';
+  const ta = document.createElement('textarea'); ta.placeholder="เขียน..."; post.appendChild(ta);
+  const del = document.createElement('div'); del.className='delete-btn'; del.innerText='X';
+  del.onclick=()=>{ post.remove(); toolbar.style.display='none'; selectedPostIt=null; saveState(); }
+  post.appendChild(del);
+  makeDraggable(post); makeResizable(post);
+  post.addEventListener('click', e=>{ e.stopPropagation(); showToolbar(post); });
+  canvas.appendChild(post);
+}
+
+// ====== Toolbar ======
+function showToolbar(el){
+  selectedPostIt=el;
+  const r=el.getBoundingClientRect(), c=canvas.getBoundingClientRect();
+  let left=r.right-c.left+5, top=r.top-c.top;
+  if(left+toolbar.offsetWidth>canvas.clientWidth) left=r.left-c.left-toolbar.offsetWidth-5;
+  if(top+toolbar.offsetHeight>canvas.clientHeight) top=r.top-c.top-toolbar.offsetHeight-5;
+  toolbar.style.left=left+'px'; toolbar.style.top=top+'px'; toolbar.style.display='flex';
+}
+function changeColor(c){ if(selectedPostIt) selectedPostIt.style.background=c; saveState(); }
+function changeShape(r){ if(selectedPostIt) selectedPostIt.style.borderRadius=r; saveState(); }
+
+// ====== Layout ======
+function setLayout(t){ canvas.classList.remove('pc','mobile'); canvas.classList.add(t); }
+
+// ====== โหลดรูป ======
+document.getElementById('imageUpload').addEventListener('change', function(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    saveState();
+    const imgDiv=document.createElement('div'); imgDiv.className='image-item'; imgDiv.style.top='30px'; imgDiv.style.left='30px';
+    const img=document.createElement('img'); img.src=ev.target.result; img.style.width='120px'; img.style.height='120px'; img.style.border='3px solid #333';
+    imgDiv.appendChild(img); makeDraggable(imgDiv);
+    const del=document.createElement('div'); del.className='delete-btn'; del.innerText='X'; del.onclick=()=>{ imgDiv.remove(); saveState(); };
+    imgDiv.appendChild(del);
+    canvas.appendChild(imgDiv);
   }
+  reader.readAsDataURL(file);
 });
 
-// Download
-function downloadImage(){ toolbar.style.display='none';
-  html2canvas(canvas).then(c=>{
-    const link=document.createElement('a'); link.download='postit-pixel-wallpaper.png';
-    link.href=c.toDataURL(); link.click();
-  });
-}
+// ====== ดาวน์โหลด ======
+function downloadImage(){ toolbar.style.display='none'; html2canvas(canvas).then(c=>{ const link=document.createElement('a'); link.download='postit.png'; link.href=c.toDataURL(); link.click(); }); }
 
-document.addEventListener('click',()=>{ toolbar.style.display='none'; selectedPostIt=null; });
+// ====== สีพื้นหลัง ======
 document.getElementById('canvasColor').addEventListener('input',function(){ canvas.style.background=this.value; });
+document.addEventListener('click',()=>{ toolbar.style.display='none'; selectedPostIt=null; });
 </script>
+
 </body>
 </html>
