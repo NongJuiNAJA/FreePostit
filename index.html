@@ -111,14 +111,13 @@ function addPostIt(){
   postit.style.top='20px'; postit.style.left='20px';
   postit.innerHTML='<textarea placeholder="เขียน..."></textarea>';
 
-  // delete
   const del=document.createElement('div'); 
   del.className='delete-btn'; del.innerText='X';
   del.onclick=()=>{if(selectedPostIt===postit){toolbar.style.display='none';selectedPostIt=null;} postit.remove();}
   postit.appendChild(del);
 
   makeDraggable(postit);
-  makeResizable(postit); // resizer อิสระแต่ละตัว
+  makeResizable(postit);
 
   postit.addEventListener('click',e=>{ e.stopPropagation(); showToolbar(postit); });
   canvas.appendChild(postit);
@@ -136,51 +135,100 @@ function showToolbar(postit){
 function changeColor(color){ if(selectedPostIt) selectedPostIt.style.background=color; }
 function changeShape(radius){ if(selectedPostIt) selectedPostIt.style.borderRadius=radius; }
 
-// draggable
+// draggable รองรับ desktop + mobile
 function makeDraggable(el){
-  let isDragging=false,offsetX,offsetY;
-  el.addEventListener('mousedown',function(e){
-    if(e.target.classList.contains('delete-btn') || e.target.classList.contains('resizer')) return;
-    isDragging=true; offsetX=e.offsetX; offsetY=e.offsetY; el.style.zIndex=1000;
-  });
-  document.addEventListener('mousemove',function(e){
-    if(isDragging){
-      const rect=canvas.getBoundingClientRect();
-      el.style.left=Math.max(0,Math.min(e.clientX-rect.left-offsetX,canvas.clientWidth-el.offsetWidth))+'px';
-      el.style.top=Math.max(0,Math.min(e.clientY-rect.top-offsetY,canvas.clientHeight-el.offsetHeight))+'px';
-      if(selectedPostIt===el){
-        const postRect=el.getBoundingClientRect();
-        toolbar.style.top=(postRect.top-rect.top)+'px';
-        toolbar.style.left=(postRect.right-rect.left+10)+'px';
-      }
+  let isDragging=false, offsetX, offsetY;
+
+  function startDrag(x, y){
+    isDragging=true;
+    const rect = el.getBoundingClientRect();
+    offsetX = x - rect.left;
+    offsetY = y - rect.top;
+    el.style.zIndex=1000;
+  }
+
+  function moveDrag(x, y){
+    if(!isDragging) return;
+    const rect=canvas.getBoundingClientRect();
+    el.style.left = Math.max(0, Math.min(x-rect.left-offsetX, canvas.clientWidth-el.offsetWidth))+'px';
+    el.style.top = Math.max(0, Math.min(y-rect.top-offsetY, canvas.clientHeight-el.offsetHeight))+'px';
+    if(selectedPostIt===el){
+      const postRect=el.getBoundingClientRect();
+      toolbar.style.top=(postRect.top-rect.top)+'px';
+      toolbar.style.left=(postRect.right-rect.left+10)+'px';
     }
+  }
+
+  function endDrag(){ isDragging=false; el.style.zIndex=1; }
+
+  // Mouse events
+  el.addEventListener('mousedown', e => { 
+    if(e.target.classList.contains('delete-btn') || e.target.classList.contains('resizer')) return;
+    startDrag(e.clientX, e.clientY);
   });
-  document.addEventListener('mouseup',()=>{isDragging=false;el.style.zIndex=1;});
+  document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+  document.addEventListener('mouseup', endDrag);
+
+  // Touch events
+  el.addEventListener('touchstart', e => { 
+    if(e.target.classList.contains('delete-btn') || e.target.classList.contains('resizer')) return;
+    const t = e.touches[0];
+    startDrag(t.clientX, t.clientY);
+    e.preventDefault();
+  }, {passive:false});
+  document.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    moveDrag(t.clientX, t.clientY);
+  }, {passive:false});
+  document.addEventListener('touchend', endDrag);
 }
 
-// resizer
+// resizer รองรับ desktop + mobile
 function makeResizable(postit){
   const resizer=document.createElement('div'); resizer.className='resizer';
   postit.appendChild(resizer);
-  let startX,startY,startW,startH;
-  resizer.addEventListener('mousedown',function(e){
-    e.stopPropagation();
-    startX=e.clientX; startY=e.clientY;
-    startW=postit.offsetWidth; startH=postit.offsetHeight;
-    function doResize(ev){
-      postit.style.width=startW + (ev.clientX-startX) + 'px';
-      postit.style.height=startH + (ev.clientY-startY) + 'px';
-      if(selectedPostIt===postit){
-        const rect=postit.getBoundingClientRect();
-        const canvasRect=canvas.getBoundingClientRect();
-        toolbar.style.top=(rect.top-canvasRect.top)+'px';
-        toolbar.style.left=(rect.right-canvasRect.left+10)+'px';
-      }
+
+  let startX, startY, startW, startH;
+
+  function initResize(x, y){
+    startX = x; startY = y;
+    startW = postit.offsetWidth; startH = postit.offsetHeight;
+  }
+
+  function doResize(x, y){
+    postit.style.width = startW + (x-startX) + 'px';
+    postit.style.height = startH + (y-startY) + 'px';
+    if(selectedPostIt===postit){
+      const rect=postit.getBoundingClientRect();
+      const canvasRect=canvas.getBoundingClientRect();
+      toolbar.style.top=(rect.top-canvasRect.top)+'px';
+      toolbar.style.left=(rect.right-canvasRect.left+10)+'px';
     }
-    function stopResize(){ document.removeEventListener('mousemove',doResize); document.removeEventListener('mouseup',stopResize);}
-    document.addEventListener('mousemove',doResize);
-    document.addEventListener('mouseup',stopResize);
+  }
+
+  function stopResize(){
+    document.removeEventListener('mousemove', mouseMove);
+    document.removeEventListener('mouseup', stopResize);
+    document.removeEventListener('touchmove', touchMove);
+    document.removeEventListener('touchend', stopResize);
+  }
+
+  function mouseMove(e){ doResize(e.clientX, e.clientY); }
+  function touchMove(e){ doResize(e.touches[0].clientX, e.touches[0].clientY); }
+
+  resizer.addEventListener('mousedown', e=>{
+    e.stopPropagation();
+    initResize(e.clientX, e.clientY);
+    document.addEventListener('mousemove', mouseMove);
+    document.addEventListener('mouseup', stopResize);
   });
+
+  resizer.addEventListener('touchstart', e=>{
+    e.stopPropagation();
+    initResize(e.touches[0].clientX, e.touches[0].clientY);
+    document.addEventListener('touchmove', touchMove, {passive:false});
+    document.addEventListener('touchend', stopResize);
+  }, {passive:false});
 }
 
 // Image Upload
