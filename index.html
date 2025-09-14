@@ -38,22 +38,33 @@ h1 { font-size:16px; color:#ff4081; text-align:center; margin-bottom:15px; }
 #canvas.pc{ width:1280px; height:720px; }
 #canvas.mobile{ width:360px; height:640px; }
 
-/* ====== Post-it ====== */
-.postit{
-  position:absolute; width:120px; min-width:60px; min-height:60px; background:#ffeb3b;
-  border:3px solid #333; display:flex; flex-direction:column; justify-content:center;
-  align-items:center; padding:4px; box-shadow:4px 4px 0 #333;
+/* ====== Post-it & Image ====== */
+.postit, .image-item {
+  position:absolute;
+  min-width:60px; min-height:60px;
+  border:3px solid #333;
+  box-shadow:4px 4px 0 #333;
+  touch-action:none; /* สำคัญสำหรับมือถือ */
+}
+.postit {
+  width:120px; background:#ffeb3b;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  padding:4px;
 }
 .postit textarea{
   width:100%; border:none; background:transparent; outline:none;
   text-align:center; font-size:8px; font-family:'Press Start 2P', cursive;
   overflow:hidden; flex:1;
 }
+.image-item img {
+  display:block; width:100%; height:100%; object-fit:cover;
+}
 
 /* ====== ปุ่มลบ ====== */
 .delete-btn{
   position:absolute; top:-10px; right:-10px; width:20px; height:20px;
   background:red; color:white; border:2px solid #333; text-align:center; cursor:pointer;
+  z-index:2001; line-height:16px; font-size:12px;
 }
 
 /* ====== Toolbar ====== */
@@ -121,40 +132,147 @@ function saveState(){ undoStack.push(canvas.innerHTML); if(undoStack.length>50) 
 function undoAction(){ if(undoStack.length){ redoStack.push(canvas.innerHTML); canvas.innerHTML = undoStack.pop(); rebindAll(); } }
 function redoAction(){ if(redoStack.length){ undoStack.push(canvas.innerHTML); canvas.innerHTML = redoStack.pop(); rebindAll(); } }
 
-// ====== ทำให้ Post-it เลื่อนและปรับขนาดได้ ======
+// ====== Rebind ======
+function rebindAll(){
+  document.querySelectorAll('.postit').forEach(post=>{
+    makeDraggable(post);
+    makeResizable(post);
+    let del = post.querySelector('.delete-btn');
+    if(del){
+      del.onclick=(e)=>{
+        e.stopPropagation(); e.preventDefault();
+        post.remove(); toolbar.style.display='none'; selectedPostIt=null; saveState();
+      };
+    }
+    post.addEventListener('click', e=>{ e.stopPropagation(); showToolbar(post); });
+  });
+  document.querySelectorAll('.image-item').forEach(imgDiv=>{
+    makeDraggable(imgDiv);
+    makeResizable(imgDiv);
+    let del = imgDiv.querySelector('.delete-btn');
+    if(del){
+      del.onclick=(e)=>{
+        e.stopPropagation(); e.preventDefault();
+        imgDiv.remove(); saveState();
+      };
+    }
+  });
+}
+
+// ====== Drag ======
 function makeDraggable(el){
   let drag=false, offsetX, offsetY;
-  function start(x,y){ drag=true; const r=el.getBoundingClientRect(); offsetX=x-r.left; offsetY=y-r.top; el.style.zIndex=1000; }
-  function move(x,y){ if(!drag) return; const r=canvas.getBoundingClientRect(); el.style.left=Math.max(0,Math.min(x-r.left-offsetX,canvas.clientWidth-el.offsetWidth))+'px'; el.style.top=Math.max(0,Math.min(y-r.top-offsetY,canvas.clientHeight-el.offsetHeight))+'px'; if(selectedPostIt===el) showToolbar(el); }
-  function end(){ drag=false; el.style.zIndex=1; saveState(); }
-  el.addEventListener('mousedown', e=>{ if(e.target.classList.contains('delete-btn')||e.target.classList.contains('resizer')) return; start(e.clientX,e.clientY); });
+
+  function start(x,y){
+    drag=true;
+    const r=el.getBoundingClientRect();
+    offsetX=x-r.left;
+    offsetY=y-r.top;
+    el.style.zIndex=1000;
+  }
+  function move(x,y){
+    if(!drag) return;
+    const r=canvas.getBoundingClientRect();
+    el.style.left=Math.max(0,Math.min(x-r.left-offsetX,canvas.clientWidth-el.offsetWidth))+'px';
+    el.style.top=Math.max(0,Math.min(y-r.top-offsetY,canvas.clientHeight-el.offsetHeight))+'px';
+    if(selectedPostIt===el) showToolbar(el);
+  }
+  function end(){
+    if(drag){ saveState(); }
+    drag=false; el.style.zIndex=1;
+  }
+
+  // Desktop
+  el.addEventListener('mousedown', e=>{
+    if(e.target.classList.contains('delete-btn')||e.target.classList.contains('resizer')) return;
+    start(e.clientX,e.clientY);
+  });
   document.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
   document.addEventListener('mouseup', end);
-  el.addEventListener('touchstart', e=>{ const t=e.touches[0]; start(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
-  document.addEventListener('touchmove', e=>{ if(!e.touches) return; const t=e.touches[0]; move(t.clientX,t.clientY); }, {passive:false});
+
+  // Mobile
+  el.addEventListener('touchstart', e=>{
+    const t=e.touches[0];
+    if(e.target.classList.contains('delete-btn')||e.target.classList.contains('resizer')) return;
+    e.preventDefault();
+    start(t.clientX,t.clientY);
+  },{passive:false});
+
+  document.addEventListener('touchmove', e=>{
+    if(!e.touches) return;
+    const t=e.touches[0];
+    move(t.clientX,t.clientY);
+  },{passive:false});
   document.addEventListener('touchend', end);
 }
 
+// ====== Resize (ใช้ได้ทั้ง postit และรูป) ======
 function makeResizable(el){
-  const res = document.createElement('div'); res.className='resizer'; el.appendChild(res);
-  let startX,startY,startW,startH;
-  function init(x,y){ startX=x; startY=y; startW=el.offsetWidth; startH=el.offsetHeight; }
-  function resize(x,y){ el.style.width=Math.max(60,startW+x-startX)+'px'; el.style.height=Math.max(60,startH+y-startY)+'px'; if(selectedPostIt===el) showToolbar(el); }
-  function stop(){ document.removeEventListener('mousemove', mouseMove); document.removeEventListener('mouseup', stop); document.removeEventListener('touchmove', touchMove); document.removeEventListener('touchend', stop); }
-  function mouseMove(e){ resize(e.clientX,e.clientY); }
-  function touchMove(e){ resize(e.touches[0].clientX,e.touches[0].clientY); }
-  res.addEventListener('mousedown', e=>{ e.stopPropagation(); init(e.clientX,e.clientY); document.addEventListener('mousemove', mouseMove); document.addEventListener('mouseup', stop); });
-  res.addEventListener('touchstart', e=>{ e.stopPropagation(); init(e.touches[0].clientX,e.touches[0].clientY); document.addEventListener('touchmove', touchMove,{passive:false}); document.addEventListener('touchend', stop); },{passive:false});
+  if(el.querySelector('.resizer')) return;
+
+  const res = document.createElement('div');
+  res.className = 'resizer';
+  el.appendChild(res);
+
+  let startX, startY, startW, startH;
+
+  function init(x,y){
+    startX = x;
+    startY = y;
+    startW = el.offsetWidth;
+    startH = el.offsetHeight;
+  }
+
+  function resize(x,y){
+    const newW = Math.max(60, startW + x - startX);
+    const newH = Math.max(60, startH + y - startY);
+
+    el.style.width = newW + 'px';
+    el.style.height = newH + 'px';
+
+    const img = el.querySelector('img');
+    if(img){
+      img.style.width = newW + 'px';
+      img.style.height = newH + 'px';
+    }
+
+    if(selectedPostIt === el) showToolbar(el);
+  }
+
+  function stop(){
+    document.removeEventListener('mousemove', mouseMove);
+    document.removeEventListener('mouseup', stop);
+    document.removeEventListener('touchmove', touchMove);
+    document.removeEventListener('touchend', stop);
+    saveState();
+  }
+
+  function mouseMove(e){ resize(e.clientX, e.clientY); }
+  function touchMove(e){ resize(e.touches[0].clientX, e.touches[0].clientY); }
+
+  res.addEventListener('mousedown', e=>{
+    e.stopPropagation();
+    init(e.clientX, e.clientY);
+    document.addEventListener('mousemove', mouseMove);
+    document.addEventListener('mouseup', stop);
+  });
+
+  res.addEventListener('touchstart', e=>{
+    e.stopPropagation();
+    init(e.touches[0].clientX, e.touches[0].clientY);
+    document.addEventListener('touchmove', touchMove, {passive:false});
+    document.addEventListener('touchend', stop);
+  }, {passive:false});
 }
 
-// ====== เพิ่ม Post-it ======
+// ====== Add Post-it ======
 function addPostIt(){
   saveState();
   const post = document.createElement('div'); post.className='postit';
-  post.style.top='20px'; post.style.left='20px';
+  post.style.top='20px'; post.style.left='20px'; post.style.width='120px'; post.style.height='120px';
   const ta = document.createElement('textarea'); ta.placeholder="เขียน..."; post.appendChild(ta);
   const del = document.createElement('div'); del.className='delete-btn'; del.innerText='X';
-  del.onclick=()=>{ post.remove(); toolbar.style.display='none'; selectedPostIt=null; saveState(); }
+  del.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); post.remove(); toolbar.style.display='none'; selectedPostIt=null; saveState(); };
   post.appendChild(del);
   makeDraggable(post); makeResizable(post);
   post.addEventListener('click', e=>{ e.stopPropagation(); showToolbar(post); });
@@ -170,32 +288,44 @@ function showToolbar(el){
   if(top+toolbar.offsetHeight>canvas.clientHeight) top=r.top-c.top-toolbar.offsetHeight-5;
   toolbar.style.left=left+'px'; toolbar.style.top=top+'px'; toolbar.style.display='flex';
 }
-function changeColor(c){ if(selectedPostIt) selectedPostIt.style.background=c; saveState(); }
-function changeShape(r){ if(selectedPostIt) selectedPostIt.style.borderRadius=r; saveState(); }
+function changeColor(c){ if(selectedPostIt){ saveState(); selectedPostIt.style.background=c; } }
+function changeShape(r){ if(selectedPostIt){ saveState(); selectedPostIt.style.borderRadius=r; } }
 
 // ====== Layout ======
 function setLayout(t){ canvas.classList.remove('pc','mobile'); canvas.classList.add(t); }
 
-// ====== โหลดรูป ======
+// ====== Upload Image ======
 document.getElementById('imageUpload').addEventListener('change', function(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=function(ev){
     saveState();
-    const imgDiv=document.createElement('div'); imgDiv.className='image-item'; imgDiv.style.top='30px'; imgDiv.style.left='30px';
-    const img=document.createElement('img'); img.src=ev.target.result; img.style.width='120px'; img.style.height='120px'; img.style.border='3px solid #333';
-    imgDiv.appendChild(img); makeDraggable(imgDiv);
-    const del=document.createElement('div'); del.className='delete-btn'; del.innerText='X'; del.onclick=()=>{ imgDiv.remove(); saveState(); };
+    const imgDiv=document.createElement('div');
+    imgDiv.className='image-item';
+    imgDiv.style.position='absolute';
+    imgDiv.style.top='30px';
+    imgDiv.style.left='30px';
+    imgDiv.style.width='120px';
+    imgDiv.style.height='120px';
+
+    const img=document.createElement('img');
+    img.src=ev.target.result;
+    imgDiv.appendChild(img);
+
+    const del=document.createElement('div'); del.className='delete-btn'; del.innerText='X';
+    del.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); imgDiv.remove(); saveState(); };
     imgDiv.appendChild(del);
+
+    makeDraggable(imgDiv); makeResizable(imgDiv);
     canvas.appendChild(imgDiv);
   }
   reader.readAsDataURL(file);
 });
 
-// ====== ดาวน์โหลด ======
+// ====== Download ======
 function downloadImage(){ toolbar.style.display='none'; html2canvas(canvas).then(c=>{ const link=document.createElement('a'); link.download='postit.png'; link.href=c.toDataURL(); link.click(); }); }
 
-// ====== สีพื้นหลัง ======
+// ====== BG Color ======
 document.getElementById('canvasColor').addEventListener('input',function(){ canvas.style.background=this.value; });
 document.addEventListener('click',()=>{ toolbar.style.display='none'; selectedPostIt=null; });
 </script>
